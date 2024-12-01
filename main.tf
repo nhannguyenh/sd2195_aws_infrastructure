@@ -25,13 +25,23 @@ resource "aws_vpc" "sd2195_vpc" {
 }
 
 # Create a public Subnet
-resource "aws_subnet" "sd2195_public_subnet" {
+resource "aws_subnet" "sd2195_public_subnet_1" {
   vpc_id            = aws_vpc.sd2195_vpc.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = "ap-southeast-1a"
 
   tags = {
-    Name = "sd2195_public_subnet"
+    Name = "sd2195_public_subnet_1"
+  }
+}
+
+resource "aws_subnet" "sd2195_public_subnet_2" {
+  vpc_id            = aws_vpc.sd2195_vpc.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = "ap-southeast-1b"
+
+  tags = {
+    Name = "sd2195_public_subnet_b"
   }
 }
 
@@ -60,7 +70,7 @@ resource "aws_route_table" "sd2195_rt" {
 
 # Associate Route Table with public Subnet
 resource "aws_route_table_association" "sd2195_rt_public_subnet" {
-  subnet_id      = aws_subnet.sd2195_public_subnet.id
+  subnet_id      = aws_subnet.sd2195_public_subnet_1.id
   route_table_id = aws_route_table.sd2195_rt.id
 }
 
@@ -105,7 +115,7 @@ resource "aws_instance" "sd2195_ec2" {
   associate_public_ip_address = true
   instance_type               = "t2.micro"
   key_name                    = "ec2key"
-  subnet_id                   = aws_subnet.sd2195_public_subnet.id
+  subnet_id                   = aws_subnet.sd2195_public_subnet_1.id
   vpc_security_group_ids      = [aws_security_group.sd2195_ec2_sg.id]
   user_data                   = file("init-installation.sh")
 
@@ -125,46 +135,66 @@ output "jenkins_url" {
   value      = join("", ["http://", aws_instance.sd2195_ec2.public_ip, ":", "8080"])
 }
 
-# # Create ERC
-# resource "aws_ecr_repository" "sd2195_ecr" {
-#   name = "sd2195_ecr"
-#   image_tag_mutability = "MUTABLE"
+# Create ERC
+resource "aws_ecr_repository" "sd2195_ecr" {
+  name                 = "sd2195_ecr"
+  image_tag_mutability = "MUTABLE"
 
-#   image_scanning_configuration {
-#     scan_on_push = true
-#   }
-# }
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
 
-# data "aws_iam_policy_document" "sd2195_eks_assume_role" {
-#   statement {
-#     effect = "Allow"
+# Create EKS
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.0"
 
-#     principals {
-#       type        = "Service"
-#       identifiers = ["eks.amazonaws.com"]
-#     }
+  cluster_name                   = "sd2195_cluster"
+  cluster_version                = "1.31"
+  cluster_endpoint_public_access = true
 
-#     actions = ["sts:AssumeRole"]
-#   }
-# }
+  # EKS Addons
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+    }
+  }
 
-# # Create IAM role
-# resource "aws_iam_role" "sd2195_eks_role" {
-#   name = "sd2195_eks_role"
-#   assume_role_policy = data.aws_iam_policy_document.sd2195_eks_assume_role.json
-# }
+  vpc_id = aws_vpc.sd2195_vpc.id
+  subnet_ids = [
+    aws_subnet.sd2195_public_subnet_1.id,
+    aws_subnet.sd2195_public_subnet_2.id
+  ]
 
-# resource "aws_iam_role_policy_attachment" "sd2195-AmazonEKSClusterPolicy" {
-#   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-#   role       = aws_iam_role.sd2195_eks_role.name
-# }
+  eks_managed_node_group_defaults = {
+    # Starting on 1.30, AL2023 is the default AMI type for EKS managed node groups
+    # ami_type                              = "AL2023"
+    instance_types                        = ["t2.micro"]
+    attach_cluster_primary_security_group = true
+  }
+  eks_managed_node_groups = {
+    amc-cluster-wg = {
+      min_size     = 1
+      max_size     = 2
+      desired_size = 1
 
-# # Create EKS
-# resource "aws_eks_cluster" "sd2195_eks" {
-#   name = "sd2195_eks"
-#   role_arn = aws_iam_role.sd2195_eks_role.arn
+      instance_types = ["t3.micro"]
+      capacity_type  = "SPOT"
 
-#   vpc_config {
-#     subnet_ids = [ aws_subnet.sd2195_public_subnet.id ]
-#   }
-# }
+      tags = {
+        ExtraTag = "sd2195_eks_node_group"
+      }
+    }
+  }
+
+  tags = {
+    Name = "sd2195_cluster"
+  }
+}
