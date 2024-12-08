@@ -42,3 +42,13 @@ variable "instance_type" {
   type        = string
   description = "EC2 instance type"
 }
+
+variable "eks_name" {
+  type        = string
+  description = "Name of EKS cluster"
+}
+
+variable "eks_version" {
+  type        = string
+  description = "The version of EKS cluster"
+}
