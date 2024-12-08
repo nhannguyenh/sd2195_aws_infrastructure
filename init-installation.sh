@@ -8,9 +8,10 @@ sudo yum upgrade -y
 sudo dnf install java-17-amazon-corretto -y
 sudo yum install jenkins -y
 sudo systemctl enable jenkins
-sudo systemctl start jenkins
 
 # install docker
 sudo yum install docker -y
 sudo service docker start
-sudo usermod -a -G docker ec2-user
+sudo usermod -a -G docker jenkins
+
+sudo systemctl start jenkins
