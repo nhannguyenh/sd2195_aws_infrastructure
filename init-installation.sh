@@ -15,3 +15,6 @@ sudo service docker start
 sudo usermod -a -G docker jenkins
 
 sudo systemctl start jenkins
+
+# install git
+sudo yum install git -y
