@@ -18,3 +18,8 @@ sudo systemctl start jenkins
 
 # install git
 sudo yum install git -y
+
+# install kubectl
+sudo curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.31.2/2024-11-15/bin/linux/amd64/kubectl
+sudo chmod +x kubectl
+sudo mv kubectl /usr/local/bin/

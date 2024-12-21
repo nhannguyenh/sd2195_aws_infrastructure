@@ -12,3 +12,8 @@ output "ecr_frontend_repo_url" {
   depends_on = [aws_ecr_repository.sd2195_ecr_frontend]
   value      = aws_ecr_repository.sd2195_ecr_frontend.repository_url
 }
+
+output "eks_arn" {
+  depends_on = [aws_eks_cluster.sd2195_eks]
+  value      = aws_eks_cluster.sd2195_eks.arn
+}

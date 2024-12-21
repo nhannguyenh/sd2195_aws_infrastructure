@@ -42,7 +42,7 @@ resource "aws_eks_node_group" "sd2195_eks_node_group" {
   ]
 
   capacity_type  = "ON_DEMAND"
-  instance_types = [var.instance_type]
+  instance_types = [var.node_instance_type]
 
   scaling_config {
     desired_size = 1
